@@ -13,15 +13,6 @@ If you need just snowball-type dictionaries, this extension is not
 really interesting for you. But if you really need an ispell
 dictionary, this may save you a lot of resources.
 
-Warning
--------
-The extension does not yet handle affixes that require full regular
-expressions (regex_t, implemented in regex.h). This is indicated by
-an error when initializing the dictionary.
-
-Simple affixes and affixes that can be handled by fast regex subset
-(as implemented in regis.h) are handled just fine.
-
 
 Install
 -------
