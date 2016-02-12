@@ -1,9 +1,22 @@
 CREATE EXTENSION shared_ispell;
+SELECT shared_ispell_mem_available();
+ shared_ispell_mem_available 
+-----------------------------
+                     1048528
+(1 row)
+
+SELECT shared_ispell_mem_used();
+ shared_ispell_mem_used 
+------------------------
+                     48
+(1 row)
+
 -- Test ISpell dictionary with ispell affix file
 CREATE TEXT SEARCH DICTIONARY shared_ispell (
                         Template=shared_ispell,
                         DictFile=ispell_sample,
-                        AffFile=ispell_sample
+                        AffFile=ispell_sample,
+                        Stopwords=english
 );
 SELECT ts_lexize('shared_ispell', 'skies');
  ts_lexize 
@@ -93,6 +106,18 @@ SELECT ts_lexize('shared_ispell', 'footballyklubber');
       ts_lexize      
 ---------------------
  {foot,ball,klubber}
+(1 row)
+
+SELECT shared_ispell_mem_available();
+ shared_ispell_mem_available 
+-----------------------------
+                      980312
+(1 row)
+
+SELECT shared_ispell_mem_used();
+ shared_ispell_mem_used 
+------------------------
+                  68264
 (1 row)
 
 -- Test ISpell dictionary with hunspell affix file
@@ -189,5 +214,48 @@ SELECT ts_lexize('shared_hunspell', 'footballyklubber');
       ts_lexize      
 ---------------------
  {foot,ball,klubber}
+(1 row)
+
+SELECT shared_ispell_mem_available();
+ shared_ispell_mem_available 
+-----------------------------
+                      914208
+(1 row)
+
+SELECT shared_ispell_mem_used();
+ shared_ispell_mem_used 
+------------------------
+                 134368
+(1 row)
+
+SELECT * FROM shared_ispell_dicts();
+   dict_name   |   affix_name    | words | affixes | bytes 
+---------------+-----------------+-------+---------+-------
+ ispell_sample | hunspell_sample |     8 |       0 | 66104
+ ispell_sample | ispell_sample   |     8 |       0 | 66104
+(2 rows)
+
+SELECT * FROM shared_ispell_stoplists();
+ stop_name | words | bytes 
+-----------+-------+-------
+ english   |   127 |  2112
+(1 row)
+
+SELECT shared_ispell_reset();
+ shared_ispell_reset 
+---------------------
+ 
+(1 row)
+
+SELECT shared_ispell_mem_available();
+ shared_ispell_mem_available 
+-----------------------------
+                     1048528
+(1 row)
+
+SELECT shared_ispell_mem_used();
+ shared_ispell_mem_used 
+------------------------
+                     48
 (1 row)
 
