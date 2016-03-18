@@ -179,13 +179,12 @@ ispell_shmem_startup()
 	segment = ShmemInitStruct(SEGMENT_NAME,
 							max_ispell_mem_size(),
 							&found);
+	segment_info = (SegmentInfo *) segment;
 
 	/* Was the shared memory segment already initialized? */
 	if (!found)
 	{
 		memset(segment, 0, max_ispell_mem_size());
-
-		segment_info = (SegmentInfo *) segment;
 
 		#if PG_VERSION_NUM >= 90600
 		segment_info->lock = &(GetNamedLWLockTranche("shared_ispell"))->lock;
@@ -265,6 +264,9 @@ clean_dict_affix(IspellDict *dict)
 	dict->nAffixData = 0;
 
 	dict->CompoundAffix = NULL;
+	dict->CompoundAffixFlags = NULL;
+	dict->nCompoundAffixFlag = 0;
+	dict->mCompoundAffixFlag = 0;
 
 	dict->avail = 0;
 }
@@ -316,7 +318,13 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 		NIImportDictionary(dict, get_tsearch_config_filename(dictFile, "dict"));
 
 		dict->usecompound = info->dict.usecompound;
-		memcpy(dict->flagval, &(info->dict.flagval), 65000);
+
+		dict->nCompoundAffixFlag = dict->mCompoundAffixFlag =
+			info->dict.nCompoundAffixFlag;
+		dict->CompoundAffixFlags = (CompoundAffixFlag *) palloc0(
+			dict->nCompoundAffixFlag * sizeof(CompoundAffixFlag));
+		memcpy(dict->CompoundAffixFlags, info->dict.CompoundAffixFlags,
+			   dict->nCompoundAffixFlag * sizeof(CompoundAffixFlag));
 
 		/*
 		 * If affix->useFlagAliases == true then AffixData is generated
@@ -342,11 +350,12 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 		/* check available space in shared segment */
 		size = sizeIspellDict(dict, dictFile, affFile);
 		if (size > segment_info->available)
-			elog(ERROR, "shared dictionary %s.dict / %s.affix needs %d B, only %ld B available",
+			elog(ERROR, "shared dictionary %s.dict / %s.affix needs %d B, only %zd B available",
 				dictFile, affFile, size, segment_info->available);
 
 		/* fine, there's enough space - copy the dictionary */
 		shdict = copyIspellDict(dict, dictFile, affFile, size, dict->nspell);
+		shdict->dict.naffixes = info->dict.naffixes;
 
 		/* add the new dictionary to the linked list (of SharedIspellDict structures) */
 		shdict->next = segment_info->shdict;
@@ -377,7 +386,7 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 
 			size = sizeStopList(&stoplist, stopFile);
 			if (size > segment_info->available)
-				elog(ERROR, "shared stoplist %s.stop needs %d B, only %ld B available",
+				elog(ERROR, "shared stoplist %s.stop needs %d B, only %zd B available",
 					stopFile, size, segment_info->available);
 
 			/* fine, there's enough space - copy the stoplist */
