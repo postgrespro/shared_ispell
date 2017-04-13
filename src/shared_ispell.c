@@ -52,6 +52,7 @@
 #include "postgres.h"
 #include "miscadmin.h"
 #include "storage/ipc.h"
+#include "storage/shmem.h"
 
 #include "commands/defrem.h"
 #include "tsearch/ts_locale.h"
