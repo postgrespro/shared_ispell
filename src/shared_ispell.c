@@ -166,7 +166,7 @@ _PG_fini(void)
 static void
 ispell_shmem_startup()
 {
-	bool	found = FALSE;
+	bool	found = false;
 	char   *segment;
 
 	if (prev_shmem_startup_hook)
