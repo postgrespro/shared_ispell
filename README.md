@@ -16,18 +16,23 @@ dictionary, this may save you a lot of resources.
 
 Install
 -------
-Installing the extension is quite simple, especially if you're on 9.1.
-In that case all you need to do is this:
 
-    $ make install
+Before build and install `shared_ispell` you should ensure following:
+
+* PostgreSQL version is 9.6 or 10.
+
+Installing the extension is quite simple. In that case all you need to do is this:
+
+    $ git clone git@github.com:postgrespro/shared_ispell.git
+    $ cd shared_ispell
+    $ make USE_PGXS=1
+    $ make USE_PGXS=1 install
 
 and then (after connecting to the database)
 
     db=# CREATE EXTENSION shared_ispell;
 
-If you're on pre-9.1 version, you'll have to do the second part manually
-by running the SQL script (shared_ispell--x.y.sql) in the database. If
-needed, replace MODULE_PATHNAME by $libdir.
+> **Important:** Don't forget to set the `PG_CONFIG` variable in case you want to test `shared_ispell` on a custom build of PostgreSQL. Read more [here](https://wiki.postgresql.org/wiki/Building_and_Installing_PostgreSQL_Extension_Modules).
 
 
 Config
