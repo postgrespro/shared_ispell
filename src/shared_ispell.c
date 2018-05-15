@@ -20,33 +20,33 @@
  * ===== shared segment init (postmaster startup) =====
  *
  * _PG_init
- *      -> ispell_shmem_startup (registered as a hook)
+ *	  -> ispell_shmem_startup (registered as a hook)
  *
  * ===== dictionary init (backend) =====
  *
  * dispell_init
- *      -> init_shared_dict
- *          -> get_shared_dict
- *              -> NIStartBuild
- *              -> NIImportDictionary
- *              -> NIImportAffixes
- *              -> NISortDictionary
- *              -> NISortAffixes
- *              -> NIFinishBuild
- *              -> sizeIspellDict
- *              -> copyIspellDict
- *                  -> copySPNode
- *          -> get_shared_stop_list
- *              -> readstoplist
- *              -> copyStopList
+ *	  -> init_shared_dict
+ *		  -> get_shared_dict
+ *			  -> NIStartBuild
+ *			  -> NIImportDictionary
+ *			  -> NIImportAffixes
+ *			  -> NISortDictionary
+ *			  -> NISortAffixes
+ *			  -> NIFinishBuild
+ *			  -> sizeIspellDict
+ *			  -> copyIspellDict
+ *				  -> copySPNode
+ *		  -> get_shared_stop_list
+ *			  -> readstoplist
+ *			  -> copyStopList
  *
  * ===== dictionary reinit after reset (backend) =====
  *
  * dispell_lexize
- *      -> timestamp of lookup < last reset
- *          -> init_shared_dict
- *              (see dispell_init above)
- *      -> SharedNINormalizeWord
+ *	  -> timestamp of lookup < last reset
+ *		  -> init_shared_dict
+ *			  (see dispell_init above)
+ *	  -> SharedNINormalizeWord
 */
 
 #include "postgres.h"
@@ -166,7 +166,7 @@ _PG_fini(void)
 static void
 ispell_shmem_startup()
 {
-	bool	found = false;
+	bool	found = FALSE;
 	char   *segment;
 
 	if (prev_shmem_startup_hook)
@@ -185,6 +185,12 @@ ispell_shmem_startup()
 	/* Was the shared memory segment already initialized? */
 	if (!found)
 	{
+		if (segment == NULL) {
+			ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				errmsg("Cannot acquire %d kB of shared memory",
+					max_ispell_mem_size_kb)));
+		}
 		memset(segment, 0, max_ispell_mem_size());
 
 		#if PG_VERSION_NUM >= 90600
@@ -288,12 +294,8 @@ static void
 init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 {
 	int size;
-
 	SharedIspellDict *shdict = NULL;
 	SharedStopList	 *shstop = NULL;
-
-	IspellDict *dict;
-	StopList	stoplist;
 
 	/* DICTIONARY + AFFIXES */
 
@@ -313,6 +315,8 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 	/* load the dictionary (word list) if not yet defined */
 	if (shdict == NULL)
 	{
+		IspellDict *dict;
+
 		dict = (IspellDict *) palloc0(sizeof(IspellDict));
 
 		NIStartBuild(dict);
@@ -383,6 +387,8 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 		/* load the stopwords if not yet defined */
 		if (shstop == NULL)
 		{
+			StopList	stoplist;
+
 			readstoplist(stopFile, &stoplist, lowerstr);
 
 			size = sizeStopList(&stoplist, stopFile);
@@ -407,11 +413,14 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 	info->lookup = GetCurrentTimestamp();
 
 	memcpy(info->dictFile, dictFile, strlen(dictFile) + 1);
-	memcpy(info->affixFile, dictFile, strlen(affFile)+ 1);
+	memcpy(info->affixFile, affFile, strlen(affFile) + 1);
 	if (stopFile != NULL)
-		memcpy(info->stopFile, dictFile, strlen(stopFile) + 1);
+		memcpy(info->stopFile, stopFile, strlen(stopFile) + 1);
 	else
 		memset(info->stopFile, 0, sizeof(info->stopFile));
+
+	/* save current context as long-lived */
+	info->saveCntx = CurrentMemoryContext;
 }
 
 Datum dispell_init(PG_FUNCTION_ARGS);
@@ -498,6 +507,9 @@ dispell_mem_used(PG_FUNCTION_ARGS)
  * The StopWords parameter is optional, the two other are required.
  *
  * If any of the filenames are incorrect, the call to init_shared_dict will fail.
+ *
+ * Do not call it directly - it saves current memory context as long-lived
+ * context.
  */
 Datum
 dispell_init(PG_FUNCTION_ARGS)
@@ -586,7 +598,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	char	   *txt;
 	TSLexeme   *res;
 	TSLexeme   *ptr,
-	           *cptr;
+			   *cptr;
 
 	if (len <= 0)
 		PG_RETURN_POINTER(NULL);
@@ -599,11 +611,27 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	/* do we need to reinit the dictionary? was the dict reset since the lookup */
 	if (timestamp_cmp_internal(info->lookup, segment_info->lastReset) < 0)
 	{
+		DictInfo		saveInfo = *info;
+		MemoryContext	ctx;
+
 		/* relock in exclusive mode */
 		LWLockRelease(segment_info->lock);
 		LWLockAcquire(segment_info->lock, LW_EXCLUSIVE);
 
-		init_shared_dict(info, info->dictFile, info->affixFile, info->stopFile);
+		/*
+		 * info is allocated in info->saveCntx, so that's why we use a copy of
+		 * info here
+		 */
+
+		MemoryContextResetAndDeleteChildren(saveInfo.saveCntx);
+		ctx = MemoryContextSwitchTo(saveInfo.saveCntx);
+
+		info = palloc0(sizeof(*info));
+
+		init_shared_dict(info, saveInfo.dictFile,
+						 saveInfo.affixFile, saveInfo.stopFile);
+
+		MemoryContextSwitchTo(ctx);
 	}
 
 	res = NINormalizeWord(&(info->dict), txt);
@@ -697,13 +725,13 @@ copySPNode(SPNode *node)
 	SPNode *copy = NULL;
 
 	if (node == NULL)
-	    return NULL;
+		return NULL;
 
 	copy = (SPNode *) shalloc(offsetof(SPNode, data) + sizeof(SPNodeData) * node->length);
 	memcpy(copy, node, offsetof(SPNode, data) + sizeof(SPNodeData) * node->length);
 
 	for (i = 0; i < node->length; i++)
-	    copy->data[i].node = copySPNode(node->data[i].node);
+		copy->data[i].node = copySPNode(node->data[i].node);
 
 	return copy;
 }
@@ -715,7 +743,7 @@ sizeSPNode(SPNode *node)
 	int size = 0;
 
 	if (node == NULL)
-	    return 0;
+		return 0;
 
 	size = MAXALIGN(offsetof(SPNode, data) + sizeof(SPNodeData) * node->length);
 
@@ -815,7 +843,7 @@ sizeIspellDict(IspellDict *dict, char *dictFile, char *affixFile)
 	/* copy affix data */
 	size += MAXALIGN(sizeof(char *) * dict->nAffixData);
 	for (i = 0; i < dict->nAffixData; i++)
-	    size += MAXALIGN(sizeof(char) * strlen(dict->AffixData[i]) + 1);
+		size += MAXALIGN(sizeof(char) * strlen(dict->AffixData[i]) + 1);
 
 	return size;
 }
@@ -842,10 +870,10 @@ dispell_list_dicts(PG_FUNCTION_ARGS)
 
 		/* Build a tuple descriptor for our result type */
 		if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
-		    ereport(ERROR,
-		            (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-		             errmsg("function returning record called in context "
-		                    "that cannot accept type record")));
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("function returning record called in context "
+							"that cannot accept type record")));
 
 		/*
 		 * generate attribute metadata needed later to produce tuples from raw

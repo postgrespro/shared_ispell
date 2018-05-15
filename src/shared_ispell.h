@@ -2,6 +2,7 @@
 #define __SHARED_ISPELL_H__
 
 #include "storage/lwlock.h"
+#include "utils/memutils.h"
 #include "utils/timestamp.h"
 #include "tsearch/dicts/spell.h"
 #include "tsearch/ts_public.h"
@@ -66,6 +67,9 @@ typedef struct DictInfo
 	SharedIspellDict   *shdict;
 	IspellDict			dict;
 	SharedStopList	   *shstop;
+
+	/* MemoryContext of dict local content */
+	MemoryContext		saveCntx;
 } DictInfo;
 
 #endif

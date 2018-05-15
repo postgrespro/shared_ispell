@@ -211,3 +211,9 @@ SELECT ts_lexize('shared_hunspell', 'skies');
  {sky}
 (1 row)
 
+SELECT ts_lexize('shared_hunspell', 'skies');
+ ts_lexize 
+-----------
+ {sky}
+(1 row)
+

@@ -54,3 +54,4 @@ SELECT shared_ispell_reset();
 
 SELECT ts_lexize('shared_ispell', 'skies');
 SELECT ts_lexize('shared_hunspell', 'skies');
+SELECT ts_lexize('shared_hunspell', 'skies');
