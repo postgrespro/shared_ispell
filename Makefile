@@ -23,4 +23,4 @@ endif
 
 # Disabled because these tests require "shared_preload_libraries=shared_ispell",
 # which typical installcheck users do not have (e.g. buildfarm clients).
-installcheck: REGRESS=
+#installcheck: REGRESS=

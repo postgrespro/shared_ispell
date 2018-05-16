@@ -69,7 +69,7 @@ typedef struct DictInfo
 	SharedStopList	   *shstop;
 
 	/* MemoryContext of dict local content */
-	MemoryContext		saveCntx;
+	MemoryContext		infoCntx;
 } DictInfo;
 
 #endif

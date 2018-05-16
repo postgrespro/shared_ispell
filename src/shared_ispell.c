@@ -283,11 +283,15 @@ clean_dict_affix(IspellDict *dict)
  * of the shared memory (using SegmentInfo->lock).
  */
 static void
-init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
+init_shared_dict(DictInfo *info, MemoryContext infoCntx,
+				 char *dictFile, char *affFile, char *stopFile)
 {
 	int			size;
 	SharedIspellDict *shdict = NULL;
 	SharedStopList *shstop = NULL;
+	MemoryContext oldctx;
+
+	oldctx = MemoryContextSwitchTo(infoCntx);
 
 	/* DICTIONARY + AFFIXES */
 
@@ -413,8 +417,9 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 	else
 		memset(info->stopFile, 0, sizeof(info->stopFile));
 
+	MemoryContextSwitchTo(oldctx);
 	/* save current context as long-lived */
-	info->saveCntx = CurrentMemoryContext;
+	info->infoCntx = infoCntx;
 }
 
 Datum dispell_init(PG_FUNCTION_ARGS);
@@ -576,7 +581,15 @@ dispell_init(PG_FUNCTION_ARGS)
 	/* search if the dictionary is already initialized */
 	LWLockAcquire(segment_info->lock, LW_EXCLUSIVE);
 
-	init_shared_dict(info, dictFile, affFile, stopFile);
+	/*
+	 * Current context is a long lived context. Create child context to store
+	 * DictInfo internal data.
+	 */
+	info->infoCntx = AllocSetContextCreate(CurrentMemoryContext,
+										   "shared_ispell context",
+										   ALLOCSET_DEFAULT_SIZES);
+
+	init_shared_dict(info, info->infoCntx, dictFile, affFile, stopFile);
 
 	LWLockRelease(segment_info->lock);
 
@@ -605,8 +618,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	/* do we need to reinit the dictionary? was the dict reset since the lookup */
 	if (timestamp_cmp_internal(info->lookup, segment_info->lastReset) < 0)
 	{
-		DictInfo		saveInfo = *info;
-		MemoryContext	ctx;
+		DictInfo	saveInfo = *info;
 
 		/* relock in exclusive mode */
 		LWLockRelease(segment_info->lock);
@@ -617,15 +629,11 @@ dispell_lexize(PG_FUNCTION_ARGS)
 		 * info here
 		 */
 
-		MemoryContextResetAndDeleteChildren(saveInfo.saveCntx);
-		ctx = MemoryContextSwitchTo(saveInfo.saveCntx);
-
+		MemoryContextResetAndDeleteChildren(saveInfo.infoCntx);
 		MemSet(info, 0, sizeof(*info));
 
-		init_shared_dict(info, saveInfo.dictFile,
+		init_shared_dict(info, saveInfo.infoCntx, saveInfo.dictFile,
 						 saveInfo.affixFile, saveInfo.stopFile);
-
-		MemoryContextSwitchTo(ctx);
 	}
 
 	res = NINormalizeWord(&(info->dict), txt);
