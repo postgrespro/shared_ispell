@@ -620,7 +620,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 		MemoryContextResetAndDeleteChildren(saveInfo.saveCntx);
 		ctx = MemoryContextSwitchTo(saveInfo.saveCntx);
 
-		info = palloc0(sizeof(*info));
+		MemSet(info, 0, sizeof(*info));
 
 		init_shared_dict(info, saveInfo.dictFile,
 						 saveInfo.affixFile, saveInfo.stopFile);
