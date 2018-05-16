@@ -166,7 +166,7 @@ _PG_fini(void)
 static void
 ispell_shmem_startup()
 {
-	bool	found = FALSE;
+	bool	found = false;
 	char   *segment;
 
 	if (prev_shmem_startup_hook)
@@ -177,27 +177,19 @@ ispell_shmem_startup()
 	 */
 	LWLockAcquire(AddinShmemInitLock, LW_EXCLUSIVE);
 
-	segment = ShmemInitStruct(SEGMENT_NAME,
-							max_ispell_mem_size(),
-							&found);
+	segment = ShmemInitStruct(SEGMENT_NAME, max_ispell_mem_size(), &found);
 	segment_info = (SegmentInfo *) segment;
 
 	/* Was the shared memory segment already initialized? */
 	if (!found)
 	{
-		if (segment == NULL) {
-			ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				errmsg("Cannot acquire %d kB of shared memory",
-					max_ispell_mem_size_kb)));
-		}
 		memset(segment, 0, max_ispell_mem_size());
 
-		#if PG_VERSION_NUM >= 90600
+#if PG_VERSION_NUM >= 90600
 		segment_info->lock = &(GetNamedLWLockTranche("shared_ispell"))->lock;
-		#else
+#else
 		segment_info->lock  = LWLockAssign();
-		#endif
+#endif
 		segment_info->firstfree = segment + MAXALIGN(sizeof(SegmentInfo));
 		segment_info->available = max_ispell_mem_size()
 			- (int)(segment_info->firstfree - segment);
@@ -293,9 +285,9 @@ clean_dict_affix(IspellDict *dict)
 static void
 init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 {
-	int size;
+	int			size;
 	SharedIspellDict *shdict = NULL;
-	SharedStopList	 *shstop = NULL;
+	SharedStopList *shstop = NULL;
 
 	/* DICTIONARY + AFFIXES */
 
@@ -315,7 +307,7 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 	/* load the dictionary (word list) if not yet defined */
 	if (shdict == NULL)
 	{
-		IspellDict *dict;
+		IspellDict  *dict;
 
 		dict = (IspellDict *) palloc0(sizeof(IspellDict));
 
@@ -337,11 +329,13 @@ init_shared_dict(DictInfo *info, char *dictFile, char *affFile, char *stopFile)
 		 */
 		if (info->dict.useFlagAliases)
 		{
-			int i;
+			int			i;
+
 			dict->useFlagAliases = true;
 			dict->lenAffixData = info->dict.lenAffixData;
 			dict->nAffixData = info->dict.nAffixData;
 			dict->AffixData = (char **) palloc0(dict->nAffixData * sizeof(char *));
+
 			for (i = 0; i < dict->nAffixData; i++)
 			{
 				dict->AffixData[i] = palloc0(strlen(info->dict.AffixData[i]) + 1);
@@ -721,8 +715,8 @@ shstrcpy(char *str)
 static SPNode *
 copySPNode(SPNode *node)
 {
-	int		i;
-	SPNode *copy = NULL;
+	int			i;
+	SPNode	   *copy = NULL;
 
 	if (node == NULL)
 		return NULL;
@@ -739,8 +733,8 @@ copySPNode(SPNode *node)
 static int
 sizeSPNode(SPNode *node)
 {
-	int i;
-	int size = 0;
+	int			i;
+	int			size = 0;
 
 	if (node == NULL)
 		return 0;
@@ -852,9 +846,9 @@ sizeIspellDict(IspellDict *dict, char *dictFile, char *affixFile)
 Datum
 dispell_list_dicts(PG_FUNCTION_ARGS)
 {
-	FuncCallContext	   *funcctx;
-	TupleDesc			tupdesc;
-	SharedIspellDict   *dict;
+	FuncCallContext *funcctx;
+	TupleDesc	tupdesc;
+	SharedIspellDict *dict;
 
 	/* init on the first call */
 	if (SRF_IS_FIRSTCALL())
