@@ -42,9 +42,9 @@ typedef struct SharedStopList
 typedef struct SegmentInfo
 {
 	LWLockId	lock;
-	char	   *firstfree;        /* first free address (always maxaligned) */
-	size_t		available;        /* free space remaining at firstfree */
-	Timestamp	lastReset;        /* last reset of the dictionary */
+	char	   *firstfree;			/* first free address (always maxaligned) */
+	size_t		available;			/* free space remaining at firstfree */
+	Timestamp	lastReset;			/* last reset of the dictionary */
 
 	/* the shared segment (info and data) */
 	SharedIspellDict *shdict;

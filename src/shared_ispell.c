@@ -94,7 +94,7 @@ static int sizeStopList(StopList *list, char *stopFile);
 static Size
 max_ispell_mem_size()
 {
-	return (Size)max_ispell_mem_size_kb * 1024L;
+	return (Size) max_ispell_mem_size_kb * 1024L;
 }
 
 /*
@@ -134,11 +134,11 @@ _PG_init(void)
 	 */
 	RequestAddinShmemSpace(max_ispell_mem_size());
 
-	#if PG_VERSION_NUM >= 90600
+#if PG_VERSION_NUM >= 90600
 	RequestNamedLWLockTranche("shared_ispell", 1);
-	#else
+#else
 	RequestAddinLWLocks(1);
-	#endif
+#endif
 
 	/* Install hooks. */
 	prev_shmem_startup_hook = shmem_startup_hook;
@@ -166,8 +166,8 @@ _PG_fini(void)
 static void
 ispell_shmem_startup()
 {
-	bool	found = false;
-	char   *segment;
+	bool		found = false;
+	char	   *segment;
 
 	if (prev_shmem_startup_hook)
 		prev_shmem_startup_hook();
@@ -191,8 +191,8 @@ ispell_shmem_startup()
 		segment_info->lock  = LWLockAssign();
 #endif
 		segment_info->firstfree = segment + MAXALIGN(sizeof(SegmentInfo));
-		segment_info->available = max_ispell_mem_size()
-			- (int)(segment_info->firstfree - segment);
+		segment_info->available = max_ispell_mem_size() -
+			(int) (segment_info->firstfree - segment);
 
 		segment_info->lastReset = GetCurrentTimestamp();
 	}
@@ -311,7 +311,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 	/* load the dictionary (word list) if not yet defined */
 	if (shdict == NULL)
 	{
-		IspellDict  *dict;
+		IspellDict *dict;
 
 		dict = (IspellDict *) palloc0(sizeof(IspellDict));
 
@@ -422,14 +422,6 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 	info->infoCntx = infoCntx;
 }
 
-Datum dispell_init(PG_FUNCTION_ARGS);
-Datum dispell_lexize(PG_FUNCTION_ARGS);
-Datum dispell_reset(PG_FUNCTION_ARGS);
-Datum dispell_mem_available(PG_FUNCTION_ARGS);
-Datum dispell_mem_used(PG_FUNCTION_ARGS);
-Datum dispell_list_dicts(PG_FUNCTION_ARGS);
-Datum dispell_list_stoplists(PG_FUNCTION_ARGS);
-
 PG_FUNCTION_INFO_V1(dispell_init);
 PG_FUNCTION_INFO_V1(dispell_lexize);
 PG_FUNCTION_INFO_V1(dispell_reset);
@@ -453,7 +445,8 @@ dispell_reset(PG_FUNCTION_ARGS)
 	segment_info->shstop = NULL;
 	segment_info->lastReset = GetCurrentTimestamp();
 	segment_info->firstfree = ((char*) segment_info) + MAXALIGN(sizeof(SegmentInfo));
-	segment_info->available = max_ispell_mem_size() - (int)(segment_info->firstfree - (char*) segment_info);
+	segment_info->available = max_ispell_mem_size() -
+		(int) (segment_info->firstfree - (char*) segment_info);
 
 	memset(segment_info->firstfree, 0, segment_info->available);
 
@@ -479,12 +472,14 @@ dispell_mem_available(PG_FUNCTION_ARGS)
 }
 
 /*
- * Returns amount of 'occupied space' in the shared segment (used by current dictionaries).
+ * Returns amount of 'occupied space' in the shared segment (used by current
+ * dictionaries).
  */
 Datum
 dispell_mem_used(PG_FUNCTION_ARGS)
 {
-	int result = 0;
+	int			result = 0;
+
 	LWLockAcquire(segment_info->lock, LW_SHARED);
 
 	result = max_ispell_mem_size() - segment_info->available;
@@ -679,7 +674,8 @@ dispell_lexize(PG_FUNCTION_ARGS)
 static char *
 shalloc(int bytes)
 {
-	char *result;
+	char	   *result;
+
 	bytes = MAXALIGN(bytes);
 
 	/* This shouldn't really happen, as the init_shared_dict checks the size
@@ -706,8 +702,10 @@ shalloc(int bytes)
 static char *
 shstrcpy(char *str)
 {
-	char *tmp = shalloc(strlen(str) + 1);
+	char	   *tmp = shalloc(strlen(str) + 1);
+
 	memcpy(tmp, str, strlen(str) + 1);
+
 	return tmp;
 }
 
@@ -801,8 +799,7 @@ sizeStopList(StopList *list, char *stopFile)
 static SharedIspellDict *
 copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int size, int words)
 {
-	int i;
-
+	int			i;
 	SharedIspellDict *copy = (SharedIspellDict *) shalloc(sizeof(SharedIspellDict));
 
 	copy->dictFile = shalloc(strlen(dictFile) + 1);
@@ -834,8 +831,8 @@ copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int size, int 
 static int
 sizeIspellDict(IspellDict *dict, char *dictFile, char *affixFile)
 {
-	int i;
-	int size = MAXALIGN(sizeof(SharedIspellDict));
+	int			i;
+	int			size = MAXALIGN(sizeof(SharedIspellDict));
 
 	size += MAXALIGN(strlen(dictFile) + 1);
 	size += MAXALIGN(strlen(affixFile) + 1);
