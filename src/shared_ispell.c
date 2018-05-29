@@ -318,6 +318,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 		NIStartBuild(dict);
 		NIImportDictionary(dict, get_tsearch_config_filename(dictFile, "dict"));
 
+		dict->flagMode = info->dict.flagMode;
 		dict->usecompound = info->dict.usecompound;
 
 		dict->nCompoundAffixFlag = dict->mCompoundAffixFlag =
@@ -815,6 +816,8 @@ copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int size, int 
 	copy->dict.AffixData = (char **) shalloc(sizeof(char *) * dict->nAffixData);
 	for (i = 0; i < copy->dict.nAffixData; i++)
 		copy->dict.AffixData[i] = shstrcpy(dict->AffixData[i]);
+
+	copy->dict.flagMode = dict->flagMode;
 
 	copy->nbytes = size;
 	copy->nwords = words;
