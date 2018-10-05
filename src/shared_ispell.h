@@ -44,7 +44,7 @@ typedef struct SegmentInfo
 	LWLockId	lock;
 	char	   *firstfree;			/* first free address (always maxaligned) */
 	size_t		available;			/* free space remaining at firstfree */
-	Timestamp	lastReset;			/* last reset of the dictionary */
+	instr_time	lastReset;			/* last reset of the dictionary */
 
 	/* the shared segment (info and data) */
 	SharedIspellDict *shdict;
@@ -54,7 +54,7 @@ typedef struct SegmentInfo
 /* used to keep track of dictionary in each backend */
 typedef struct DictInfo
 {
-	Timestamp	lookup;
+	instr_time	lookup;
 
 	char dictFile[MAXLEN];
 	char affixFile[MAXLEN];

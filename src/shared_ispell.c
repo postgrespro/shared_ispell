@@ -194,7 +194,7 @@ ispell_shmem_startup()
 		segment_info->available = max_ispell_mem_size() -
 			(int) (segment_info->firstfree - segment);
 
-		segment_info->lastReset = GetCurrentTimestamp();
+		INSTR_TIME_SET_CURRENT(segment_info->lastReset);
 	}
 
 	LWLockRelease(AddinShmemInitLock);
@@ -409,7 +409,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 
 	info->shdict = shdict;
 	info->shstop = shstop;
-	info->lookup = GetCurrentTimestamp();
+	INSTR_TIME_SET_CURRENT(info->lookup);
 
 	memcpy(info->dictFile, dictFile, strlen(dictFile) + 1);
 	memcpy(info->affixFile, affFile, strlen(affFile) + 1);
@@ -444,7 +444,7 @@ dispell_reset(PG_FUNCTION_ARGS)
 
 	segment_info->shdict = NULL;
 	segment_info->shstop = NULL;
-	segment_info->lastReset = GetCurrentTimestamp();
+	INSTR_TIME_SET_CURRENT(segment_info->lastReset);
 	segment_info->firstfree = ((char*) segment_info) + MAXALIGN(sizeof(SegmentInfo));
 	segment_info->available = max_ispell_mem_size() -
 		(int) (segment_info->firstfree - (char*) segment_info);
@@ -612,7 +612,8 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	LWLockAcquire(segment_info->lock, LW_SHARED);
 
 	/* do we need to reinit the dictionary? was the dict reset since the lookup */
-	if (timestamp_cmp_internal(info->lookup, segment_info->lastReset) < 0)
+	if (INSTR_TIME_GET_MICROSEC(info->lookup) <
+		INSTR_TIME_GET_MICROSEC(segment_info->lastReset))
 	{
 		DictInfo	saveInfo = *info;
 
