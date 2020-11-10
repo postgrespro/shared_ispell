@@ -6,7 +6,7 @@ OBJS = src/shared_ispell.o
 EXTENSION = shared_ispell
 DATA = shared_ispell--1.1.0.sql
 
-REGRESS = shared_ispell
+REGRESS = security shared_ispell
 
 EXTRA_REGRESS_OPTS=--temp-config=$(top_srcdir)/$(subdir)/postgresql.conf
 
