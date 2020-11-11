@@ -18,7 +18,7 @@ create extension shared_ispell;
 
 drop extension if exists shared_ispell;
 drop type si_dicts_result;
-drop function shared_ispell_dicts;
+drop function shared_ispell_dicts();
 
 create type si_stoplists_result as (stop_name VARCHAR, words INT, bytes INT);
 
@@ -40,4 +40,4 @@ create extension shared_ispell;
 
 drop extension if exists shared_ispell;
 drop type si_stoplists_result;
-drop function shared_ispell_stoplists;
+drop function shared_ispell_stoplists();

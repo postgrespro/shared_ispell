@@ -17,7 +17,7 @@ ERROR:  function "shared_ispell_dicts" already exists with same argument types
 drop extension if exists shared_ispell;
 NOTICE:  extension "shared_ispell" does not exist, skipping
 drop type si_dicts_result;
-drop function shared_ispell_dicts;
+drop function shared_ispell_dicts();
 create type si_stoplists_result as (stop_name VARCHAR, words INT, bytes INT);
 create function shared_ispell_stoplists(OUT stop_name VARCHAR, OUT words INT, OUT bytes INT)
 returns SETOF record as $$
@@ -37,4 +37,4 @@ ERROR:  function "shared_ispell_stoplists" already exists with same argument typ
 drop extension if exists shared_ispell;
 NOTICE:  extension "shared_ispell" does not exist, skipping
 drop type si_stoplists_result;
-drop function shared_ispell_stoplists;
+drop function shared_ispell_stoplists();
