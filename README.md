@@ -19,7 +19,7 @@ Install
 
 Before build and install `shared_ispell` you should ensure following:
 
-* PostgreSQL version is 9.6 or 10.
+* PostgreSQL version is 9.6 or later.
 
 Installing the extension is quite simple. In that case all you need to do is this:
 
