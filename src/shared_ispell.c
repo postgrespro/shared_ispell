@@ -66,12 +66,11 @@
 PG_MODULE_MAGIC;
 
 void _PG_init(void);
-void _PG_fini(void);
 
 /* Memory for dictionaries in kbytes */
 static int max_ispell_mem_size_kb;
 
-/* Saved hook values in case of unload */
+/* Saved hook value for proper chaining */
 static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
 
 /* These are used to allocate data within shared segment */
@@ -96,6 +95,11 @@ max_ispell_mem_size()
 {
 	return (Size) max_ispell_mem_size_kb * 1024L;
 }
+
+#if (PG_VERSION_NUM >= 150000)
+static shmem_request_hook_type prev_shmem_request_hook = NULL;
+static void shared_ispell_shmem_request(void);
+#endif
 
 /*
  * Module load callback
@@ -127,11 +131,10 @@ _PG_init(void)
 
 	EmitWarningsOnPlaceholders("shared_ispell");
 
-	/*
-	 * Request additional shared resources.  (These are no-ops if we're not in
-	 * the postmaster process.)  We'll allocate or attach to the shared
-	 * resources in ispell_shmem_startup().
-	 */
+#if PG_VERSION_NUM >= 150000
+	prev_shmem_request_hook = shmem_request_hook;
+	shmem_request_hook = shared_ispell_shmem_request;
+#else
 	RequestAddinShmemSpace(max_ispell_mem_size());
 
 #if PG_VERSION_NUM >= 90600
@@ -139,21 +142,22 @@ _PG_init(void)
 #else
 	RequestAddinLWLocks(1);
 #endif
+#endif
 
 	/* Install hooks. */
 	prev_shmem_startup_hook = shmem_startup_hook;
 	shmem_startup_hook = ispell_shmem_startup;
 }
 
-
-/*
- * Module unload callback
- */
-void
-_PG_fini(void)
+static void
+shared_ispell_shmem_request(void)
 {
-	/* Uninstall hooks. */
-	shmem_startup_hook = prev_shmem_startup_hook;
+	if (prev_shmem_request_hook)
+		prev_shmem_request_hook();
+
+	RequestAddinShmemSpace(max_ispell_mem_size());
+
+	RequestNamedLWLockTranche("shared_ispell", 1);
 }
 
 /*
