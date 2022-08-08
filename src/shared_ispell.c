@@ -149,6 +149,7 @@ _PG_init(void)
 	shmem_startup_hook = ispell_shmem_startup;
 }
 
+#if PG_VERSION_NUM >= 150000
 static void
 shared_ispell_shmem_request(void)
 {
@@ -159,6 +160,7 @@ shared_ispell_shmem_request(void)
 
 	RequestNamedLWLockTranche("shared_ispell", 1);
 }
+#endif
 
 /*
  * Probably the most important part of the startup - initializes the
