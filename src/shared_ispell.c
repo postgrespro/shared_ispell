@@ -42,10 +42,10 @@
  *
  * ===== dictionary reinit after reset (backend) =====
  *
- * dispell_lexize
+ * contrib_dispell_lexize
  *	  -> timestamp of lookup < last reset
  *		  -> init_shared_dict
- *			  (see dispell_init above)
+ *			  (see contrib_dispell_init above)
  *	  -> SharedNINormalizeWord
 */
 
@@ -210,8 +210,8 @@ ispell_shmem_startup()
  * This is called from backends that are looking up for a shared dictionary
  * definition using a filename with dictionary / affixes.
  *
- * This is called through dispell_init() which is responsible for proper locking
- * of the shared memory (using SegmentInfo->lock).
+ * This is called through contrib_dispell_init() which is responsible
+ * for proper locking of the shared memory (using SegmentInfo->lock).
  */
 static SharedIspellDict *
 get_shared_dict(char *words, char *affixes)
@@ -233,8 +233,8 @@ get_shared_dict(char *words, char *affixes)
  * This is called from backends that are looking up for a list of stop words
  * using a filename of the list.
  *
- * This is called through dispell_init() which is responsible for proper locking
- * of the shared memory (using SegmentInfo->lock).
+ * This is called through dispell_init() which is responsible
+ * for proper locking of the shared memory (using SegmentInfo->lock).
  */
 static SharedStopList *
 get_shared_stop_list(char *stop)
@@ -285,8 +285,8 @@ clean_dict_affix(IspellDict *dict)
  * shared segment. If not then loads the dictionary (word list).
  * Affix list is loaded to a current backend process.
  *
- * This is called through dispell_init() which is responsible for proper locking
- * of the shared memory (using SegmentInfo->lock).
+ * This is called through dispell_init() which is responsible
+ * for proper locking of the shared memory (using SegmentInfo->lock).
  */
 static void
 init_shared_dict(DictInfo *info, MemoryContext infoCntx,
@@ -429,8 +429,8 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 	info->infoCntx = infoCntx;
 }
 
-PG_FUNCTION_INFO_V1(dispell_init);
-PG_FUNCTION_INFO_V1(dispell_lexize);
+PG_FUNCTION_INFO_V1(contrib_dispell_init);
+PG_FUNCTION_INFO_V1(contrib_dispell_lexize);
 PG_FUNCTION_INFO_V1(dispell_reset);
 PG_FUNCTION_INFO_V1(dispell_mem_available);
 PG_FUNCTION_INFO_V1(dispell_mem_used);
@@ -513,7 +513,7 @@ dispell_mem_used(PG_FUNCTION_ARGS)
  * context.
  */
 Datum
-dispell_init(PG_FUNCTION_ARGS)
+contrib_dispell_init(PG_FUNCTION_ARGS)
 {
 	List	   *dictoptions = (List *) PG_GETARG_POINTER(0);
 	char	   *dictFile = NULL,
@@ -524,7 +524,7 @@ dispell_init(PG_FUNCTION_ARGS)
 				stoploaded = false;
 	ListCell   *l;
 
-	/* this is the result passed to dispell_lexize */
+	/* this is the result passed to contrib_dispell_lexize */
 	DictInfo   *info = (DictInfo *) palloc0(sizeof(DictInfo));
 
 	foreach(l, dictoptions)
@@ -599,7 +599,7 @@ dispell_init(PG_FUNCTION_ARGS)
 }
 
 Datum
-dispell_lexize(PG_FUNCTION_ARGS)
+contrib_dispell_lexize(PG_FUNCTION_ARGS)
 {
 	DictInfo   *info = (DictInfo *) PG_GETARG_POINTER(0);
 	char	   *in = (char *) PG_GETARG_POINTER(1);

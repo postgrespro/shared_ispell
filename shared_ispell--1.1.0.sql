@@ -1,11 +1,11 @@
 CREATE FUNCTION shared_ispell_init(internal)
 	RETURNS internal
-	AS 'MODULE_PATHNAME', 'dispell_init'
+	AS 'MODULE_PATHNAME', 'contrib_dispell_init'
 	LANGUAGE C IMMUTABLE;
 
 CREATE FUNCTION shared_ispell_lexize(internal,internal,internal,internal)
 	RETURNS internal
-	AS 'MODULE_PATHNAME', 'dispell_lexize'
+	AS 'MODULE_PATHNAME', 'contrib_dispell_lexize'
 	LANGUAGE C IMMUTABLE;
 
 CREATE FUNCTION shared_ispell_reset()
