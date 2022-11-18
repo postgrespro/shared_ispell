@@ -59,6 +59,7 @@
 #include "access/htup_details.h"
 #include "funcapi.h"
 #include "utils/builtins.h"
+#include "utils/guc.h"
 
 #include "shared_ispell.h"
 #include "tsearch/dicts/spell.h"
