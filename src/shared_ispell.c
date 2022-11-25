@@ -430,8 +430,6 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 	info->infoCntx = infoCntx;
 }
 
-PG_FUNCTION_INFO_V1(dispell_init);
-PG_FUNCTION_INFO_V1(dispell_lexize);
 PG_FUNCTION_INFO_V1(dispell_reset);
 PG_FUNCTION_INFO_V1(dispell_mem_available);
 PG_FUNCTION_INFO_V1(dispell_mem_used);
