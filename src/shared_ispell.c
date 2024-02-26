@@ -633,7 +633,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 		 * info here
 		 */
 
-		MemoryContextResetAndDeleteChildren(saveInfo.infoCntx);
+		MemoryContextReset(saveInfo.infoCntx);
 		MemSet(info, 0, sizeof(*info));
 
 		init_shared_dict(info, saveInfo.infoCntx, saveInfo.dictFile,
