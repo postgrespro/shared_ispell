@@ -80,7 +80,7 @@ static SegmentInfo *segment_info = NULL;
 static void ispell_shmem_startup(void);
 
 static char *shalloc(int bytes);
-static char *shstrcpy(char *str);
+static char *shstrcpy(const char *str);
 
 static SharedIspellDict *copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int bytes, int words);
 static SharedStopList *copyStopList(StopList *list, char *stopFile, int bytes);
@@ -346,13 +346,10 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 			dict->useFlagAliases = true;
 			dict->lenAffixData = info->dict.lenAffixData;
 			dict->nAffixData = info->dict.nAffixData;
-			dict->AffixData = (char **) palloc0(dict->nAffixData * sizeof(char *));
+			dict->AffixData = (const char **) palloc0(dict->nAffixData * sizeof(char *));
 
 			for (i = 0; i < dict->nAffixData; i++)
-			{
-				dict->AffixData[i] = palloc0(strlen(info->dict.AffixData[i]) + 1);
-				strcpy(dict->AffixData[i], info->dict.AffixData[i]);
-			}
+				dict->AffixData[i] = pstrdup(info->dict.AffixData[i]);
 		}
 
 		NISortDictionary(dict);
@@ -709,7 +706,7 @@ shalloc(int bytes)
  * by the code that reads and parses the dictionary / affixes).
  */
 static char *
-shstrcpy(char *str)
+shstrcpy(const char *str)
 {
 	char	   *tmp = shalloc(strlen(str) + 1);
 
@@ -821,7 +818,7 @@ copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int size, int 
 
 	/* copy affix data */
 	copy->dict.nAffixData = dict->nAffixData;
-	copy->dict.AffixData = (char **) shalloc(sizeof(char *) * dict->nAffixData);
+	copy->dict.AffixData = (const char **) shalloc(sizeof(char *) * dict->nAffixData);
 	for (i = 0; i < copy->dict.nAffixData; i++)
 		copy->dict.AffixData[i] = shstrcpy(dict->AffixData[i]);
 
