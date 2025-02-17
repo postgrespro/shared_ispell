@@ -54,8 +54,10 @@
 #include "storage/ipc.h"
 #include "storage/shmem.h"
 
+#include "catalog/pg_collation_d.h"
 #include "commands/defrem.h"
 #include "tsearch/ts_locale.h"
+#include "utils/formatting.h"
 #include "access/htup_details.h"
 #include "funcapi.h"
 #include "utils/builtins.h"
@@ -395,7 +397,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 		{
 			StopList	stoplist;
 
-			readstoplist(stopFile, &stoplist, lowerstr);
+			readstoplist(stopFile, &stoplist, str_tolower);
 
 			size = sizeStopList(&stoplist, stopFile);
 			if (size > segment_info->available)
@@ -613,7 +615,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	if (len <= 0)
 		PG_RETURN_POINTER(NULL);
 
-	txt = lowerstr_with_len(in, len);
+	txt = str_tolower(in, len, DEFAULT_COLLATION_OID);
 
 	/* need to lock the segment in shared mode */
 	LWLockAcquire(segment_info->lock, LW_SHARED);
