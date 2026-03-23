@@ -1,0 +1,70 @@
+name: Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        pg_version: [12, 13, 14, 15, 16, 17]
+        os: [ubuntu-22.04]
+        build: [automake, meson]
+        tests: [sql]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ format('ghcr.io/postgres-dev/{0}:1.0', matrix.os) }}
+      options: --privileged
+      env:
+        PGDATA: $HOME/data
+        PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
+
+    steps:
+      # Checkout shared_ispell
+      - name: Checkout shared_ispell
+        uses: actions/checkout@v3
+
+      # Install general build tools
+      - name: Install build tools
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release
+
+      # Set PG_CONFIG to container's Postgres
+      - name: Set PG_CONFIG
+        run: echo "PG_CONFIG=$(which pg_config)" >> $GITHUB_ENV
+
+      # Build shared_ispell (automake)
+      - name: Build (automake)
+        if: matrix.build == 'automake'
+        run: |
+          make USE_PGXS=1
+          make USE_PGXS=1 install
+
+      # Build shared_ispell (meson)
+      - name: Build (meson)
+        if: matrix.build == 'meson'
+        run: |
+          PREFIX=$($PG_CONFIG --pgxs | sed 's|/lib/pgxs/src/makefiles/pgxs.mk||')
+          meson setup builddir --prefix=$PREFIX
+          meson compile -C builddir
+          meson install -C builddir
+
+      # Create extension
+      - name: Create extension
+        run: |
+          createdb test
+          psql -d test -c "CREATE EXTENSION shared_ispell;"
+
+      # Run SQL tests
+      - name: Run SQL tests
+        run: |
+          for f in sql/*.sql; do
+            echo "Running $f"
+            psql -d test -f "$f"
+          done
