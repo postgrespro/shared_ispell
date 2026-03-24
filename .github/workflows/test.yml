@@ -25,7 +25,7 @@ jobs:
         PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
 
     steps:
-      # Get Postgres sources 
+      # Get Postgres sources
       - name: Checkout PostgreSQL
         uses: actions/checkout@v3
         with:
@@ -36,12 +36,15 @@ jobs:
       # Get extension
       - name: Checkout shared_ispell
         uses: actions/checkout@v3
+        with:
+          path: shared_ispell
 
       # Install Postgres
       - name: Install PostgreSQL
         run: |
-          make -C postgres install-world-bin prefix=$HOME/pgsql
+          make install-postgres top_builddir=$GITHUB_WORKSPACE/postgres prefix=$HOME/pgsql
           echo "$HOME/pgsql/bin" >> $GITHUB_PATH
+        working-directory: shared_ispell
 
       # Set PG_CONFIG
       - name: Set PG_CONFIG
@@ -58,6 +61,7 @@ jobs:
       - name: Build (automake)
         if: matrix.build == 'automake'
         run: |
+          cd shared_ispell
           make USE_PGXS=1
           make USE_PGXS=1 install
 
@@ -71,12 +75,17 @@ jobs:
           meson install -C builddir
 
       # Create extension + run tests
-      - name: Run SQL tests
+      - name: Check create extension
         run: |
+          cd shared_ispell
           createdb test
           psql -d test -c "CREATE EXTENSION shared_ispell;"
 
-          for f in sql/*.sql; do
-            echo "Running $f"
-            psql -d test -f "$f"
-          done
+      - name: Run tests
+        run: |
+          cd shared_ispell
+          if [ "${{ matrix.build }}" = "meson" ]; then
+            meson test -C builddir --verbose
+          else
+            make USE_PGXS=1 installcheck
+          fi
