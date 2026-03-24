@@ -9,66 +9,59 @@ on:
 
 jobs:
   test:
+    runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         pg_version: [12, 13, 14, 15, 16, 17]
-        os: [ubuntu-22.04]
         build: [automake, meson]
-        tests: [sql]
-      fail-fast: false
-    runs-on: ubuntu-latest
+
     container:
-      image: ubuntu:22.04      # main job container
-      options: --user root
-    services:
-      postgres:
-        image: postgres:${{ matrix.pg_version }}
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
+      image: ghcr.io/postgres-dev/ubuntu-22.04:1.0
+      options: --privileged
+      env:
+        PGDATA: /tmp/pgdata
+        PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
 
     steps:
-      # Checkout shared_ispell
+      # Get Postgres sources 
+      - name: Checkout PostgreSQL
+        uses: actions/checkout@v3
+        with:
+          repository: postgres/postgres
+          ref: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
+          path: postgres
+
+      # Get extension
       - name: Checkout shared_ispell
         uses: actions/checkout@v3
 
-      # Install build tools and headers
-      - name: Install build tools and PostgreSQL dev headers
+      # Install Postgres
+      - name: Install PostgreSQL
         run: |
-          apt-get update
-          apt-get install -y wget gnupg lsb-release
+          make -C postgres install-world-bin prefix=$HOME/pgsql
+          echo "$HOME/pgsql/bin" >> $GITHUB_PATH
 
-          # Add PostgreSQL APT repo
-          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
-            > /etc/apt/sources.list.d/pgdg.list
-
-          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-
-          apt-get update
-
-          # Install everything
-          apt-get install -y \
-            build-essential automake meson ninja-build pkg-config libxml2-dev \
-            postgresql-server-dev-${{ matrix.pg_version }}
-
-      # Set PG_CONFIG to container's Postgres
+      # Set PG_CONFIG
       - name: Set PG_CONFIG
-        run: echo "PG_CONFIG=$(which pg_config)" >> $GITHUB_ENV
+        run: |
+          echo "PG_CONFIG=$HOME/pgsql/bin/pg_config" >> $GITHUB_ENV
 
-      # Build shared_ispell (automake)
+      # Init + start server
+      - name: Start PostgreSQL
+        run: |
+          initdb -D $PGDATA
+          pg_ctl -D $PGDATA -o "-F -k /tmp" -w start
+
+      # Build extension (automake)
       - name: Build (automake)
         if: matrix.build == 'automake'
         run: |
           make USE_PGXS=1
           make USE_PGXS=1 install
 
-      # Build shared_ispell (meson)
+      # Build extension (meson)
       - name: Build (meson)
         if: matrix.build == 'meson'
         run: |
@@ -77,21 +70,13 @@ jobs:
           meson compile -C builddir
           meson install -C builddir
 
-      # Create extension
-      - name: Create extension
-        run: |
-          export PGUSER=postgres
-          export PGPASSWORD=postgres
-          createdb -h localhost -p 5432 test
-          psql -h localhost -p 5432 -U postgres -d test -c "CREATE EXTENSION shared_ispell;"
-
-      # Run SQL tests
+      # Create extension + run tests
       - name: Run SQL tests
         run: |
-          export PGUSER=postgres
-          export PGPASSWORD=postgres
+          createdb test
+          psql -d test -c "CREATE EXTENSION shared_ispell;"
+
           for f in sql/*.sql; do
             echo "Running $f"
-            psql -h localhost -p 5432 -U postgres -d test -f "$f"
+            psql -d test -f "$f"
           done
-
