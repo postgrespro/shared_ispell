@@ -43,6 +43,12 @@ jobs:
       - name: Build (automake)
         if: matrix.build == 'automake'
         run: |
+          cd postgres
+          make -C src install DESTDIR=$HOME/pgsql
+          export PG_CONFIG=$HOME/pgsql/usr/local/bin/pg_config
+          cd $GITHUB_WORKSPACE
+
+          # Now build the extension
           make USE_PGXS=1
           make USE_PGXS=1 install
 
@@ -68,3 +74,4 @@ jobs:
             echo "Running $f"
             psql -d test -f "$f"
           done
+
