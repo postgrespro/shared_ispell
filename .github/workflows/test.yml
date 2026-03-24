@@ -38,12 +38,24 @@ jobs:
       - name: Checkout shared_ispell
         uses: actions/checkout@v3
 
-      # Install general build tools
-      - name: Install build tools
+      # Install build tools and headers
+      - name: Install build tools and PostgreSQL dev headers
         run: |
-          apt update
-          apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release \
-          postgresql-server-dev-${{ matrix.pg_version }}
+          apt-get update
+          apt-get install -y wget gnupg lsb-release
+
+          # Add PostgreSQL APT repo
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list
+
+          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+
+          apt-get update
+
+          # Install everything
+          apt-get install -y \
+            build-essential automake meson ninja-build pkg-config libxml2-dev \
+            postgresql-server-dev-${{ matrix.pg_version }}
 
       # Set PG_CONFIG to container's Postgres
       - name: Set PG_CONFIG
