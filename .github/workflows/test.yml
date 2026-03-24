@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: ${{ format('ghcr.io/postgres-dev/{0}:1.0', matrix.os) }}
-      options: --privileged
+      image: postgres:${{ matrix.pg_version }}
+      options: --user root
       env:
         PGDATA: $HOME/data
         PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
@@ -32,8 +32,8 @@ jobs:
       # Install general build tools
       - name: Install build tools
         run: |
-          sudo apt update
-          sudo apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release
+          apt update
+          apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release
 
       # Set PG_CONFIG to container's Postgres
       - name: Set PG_CONFIG
