@@ -18,11 +18,20 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: postgres:${{ matrix.pg_version }}
+      image: ubuntu:22.04      # main job container
       options: --user root
-      env:
-        PGDATA: $HOME/data
-        PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg_version }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       # Checkout shared_ispell
@@ -59,14 +68,18 @@ jobs:
       # Create extension
       - name: Create extension
         run: |
-          createdb test
-          psql -d test -c "CREATE EXTENSION shared_ispell;"
+          export PGUSER=postgres
+          export PGPASSWORD=postgres
+          createdb -h localhost -p 5432 test
+          psql -h localhost -p 5432 -U postgres -d test -c "CREATE EXTENSION shared_ispell;"
 
       # Run SQL tests
       - name: Run SQL tests
         run: |
+          export PGUSER=postgres
+          export PGPASSWORD=postgres
           for f in sql/*.sql; do
             echo "Running $f"
-            psql -d test -f "$f"
+            psql -h localhost -p 5432 -U postgres -d test -f "$f"
           done
 
