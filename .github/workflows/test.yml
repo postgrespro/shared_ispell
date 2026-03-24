@@ -33,7 +33,8 @@ jobs:
       - name: Install build tools
         run: |
           apt update
-          apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release
+          apt install -y build-essential automake meson ninja-build pkg-config libxml2-dev wget gnupg lsb-release \
+          postgresql-server-dev-${{ matrix.pg_version }}
 
       # Set PG_CONFIG to container's Postgres
       - name: Set PG_CONFIG
