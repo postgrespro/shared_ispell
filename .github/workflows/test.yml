@@ -25,14 +25,6 @@ jobs:
         PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
 
     steps:
-
-      - name: Get Postgres sources
-        uses: actions/checkout@v3
-        with:
-          repository: postgres/postgres
-          ref: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
-          path: postgres
-
       # Checkout shared_ispell
       - name: Checkout shared_ispell
         uses: actions/checkout@v3
@@ -51,12 +43,6 @@ jobs:
       - name: Build (automake)
         if: matrix.build == 'automake'
         run: |
-          cd postgres
-          make -C src install DESTDIR=$HOME/pgsql
-          export PG_CONFIG=$HOME/pgsql/usr/local/bin/pg_config
-          cd $GITHUB_WORKSPACE
-
-          # Now build the extension
           make USE_PGXS=1
           make USE_PGXS=1 install
 
