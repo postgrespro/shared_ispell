@@ -19,7 +19,7 @@ Install
 
 Before build and install `shared_ispell` you should ensure following:
 
-* PostgreSQL version is 9.6 or later.
+* PostgreSQL version is from 9.6 to 17 [^1]
 
 Installing the extension is quite simple. In that case all you need to do is this:
 
@@ -155,3 +155,8 @@ but there is not related code in the GitHub.
 Author
 ------
 Tomas Vondra [GitHub](https://github.com/tvondra)
+
+Notes
+------
+
+[^1]: If you would like support for newer versions, please contact us: [info@postgrespro.ru](mailto:info@postgrespro.ru?subject=shared_ispell)
