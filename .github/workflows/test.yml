@@ -39,12 +39,13 @@ jobs:
         with:
           path: shared_ispell
 
-      # Install Postgres
-      - name: Install PostgreSQL
+      - name: Install Postgres
         run: |
-          make install-postgres top_builddir=$GITHUB_WORKSPACE/postgres prefix=$HOME/pgsql
+          cd $GITHUB_WORKSPACE/postgres
+          ./configure --prefix=$HOME/pgsql --enable-debug --enable-cassert --enable-depend --enable-tap-tests
+          make -sj $(nproc) install MAKELEVEL=0
+          make -sj $(nproc) -C contrib/ install MAKELEVEL=0
           echo "$HOME/pgsql/bin" >> $GITHUB_PATH
-        working-directory: shared_ispell
 
       # Set PG_CONFIG
       - name: Set PG_CONFIG
