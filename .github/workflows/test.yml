@@ -1,5 +1,4 @@
 name: Test
-
 on:
   push:
     branches: ["**"]
@@ -10,7 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +23,7 @@ jobs:
         PG_BRANCH: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
 
     steps:
-      # Get Postgres sources
+      # 1. Get Postgres sources
       - name: Checkout PostgreSQL
         uses: actions/checkout@v3
         with:
@@ -33,12 +31,13 @@ jobs:
           ref: ${{ format('REL_{0}_STABLE', matrix.pg_version) }}
           path: postgres
 
-      # Get extension
+      # 2. Get extension
       - name: Checkout shared_ispell
         uses: actions/checkout@v3
         with:
           path: shared_ispell
 
+      # 3. Install Postgres
       - name: Install Postgres
         run: |
           cd $GITHUB_WORKSPACE/postgres
@@ -47,18 +46,12 @@ jobs:
           make -sj $(nproc) -C contrib/ install MAKELEVEL=0
           echo "$HOME/pgsql/bin" >> $GITHUB_PATH
 
-      # Set PG_CONFIG
+      # 4. Set PG_CONFIG
       - name: Set PG_CONFIG
         run: |
           echo "PG_CONFIG=$HOME/pgsql/bin/pg_config" >> $GITHUB_ENV
 
-      # Init + start server
-      - name: Start PostgreSQL
-        run: |
-          initdb -D $PGDATA
-          pg_ctl -D $PGDATA -o "-F -k /tmp" -w start
-
-      # Build extension (automake)
+      # 5. Build extension (automake) - MOVED UP
       - name: Build (automake)
         if: matrix.build == 'automake'
         run: |
@@ -66,21 +59,37 @@ jobs:
           make USE_PGXS=1
           make USE_PGXS=1 install
 
-      # Build extension (meson)
+      # 6. Build extension (meson) - MOVED UP
       - name: Build (meson)
         if: matrix.build == 'meson'
         run: |
-          PREFIX=$($PG_CONFIG --pgxs | sed 's|/lib/pgxs/src/makefiles/pgxs.mk||')
+          PREFIX=$($PG_CONFIG --pgxs | sed 's|/lib/pgxs/src/makefiles/pgxs.mk ||')
           meson setup builddir --prefix=$PREFIX
           meson compile -C builddir
           meson install -C builddir
 
-      # Create extension + run tests
+      # 7. Prepare directories and fix permissions for the 'dev' user
+      - name: Prepare directories for dev user
+        run: |
+          # Give 'dev' ownership of the extension folder so it can write test logs
+          chown -R dev: shared_ispell
+          # Create and assign ownership of the Postgres data directory
+          mkdir -p $PGDATA
+          chown dev: $PGDATA
+
+      # 8. Init + start server (Now shared_ispell.so exists in the lib folder!)
+      - name: Start PostgreSQL
+        run: |
+          runuser dev -c "initdb -D $PGDATA"
+          runuser dev -c "pg_ctl -D $PGDATA -o '-F -k /tmp -c shared_preload_libraries=shared_ispell' -w start"
+
+      # 9. Create extension + run tests (Executed as 'dev' user)
       - name: Check create extension
         run: |
           cd shared_ispell
           createdb test
           psql -d test -c "CREATE EXTENSION shared_ispell;"
+        shell: runuser dev {0}
 
       - name: Run tests
         run: |
@@ -90,3 +99,4 @@ jobs:
           else
             make USE_PGXS=1 installcheck
           fi
+        shell: runuser dev {0}
