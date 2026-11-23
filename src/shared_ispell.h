@@ -1,6 +1,7 @@
 #ifndef __SHARED_ISPELL_H__
 #define __SHARED_ISPELL_H__
 
+#include "portability/instr_time.h"
 #include "storage/lwlock.h"
 #include "utils/memutils.h"
 #include "utils/timestamp.h"

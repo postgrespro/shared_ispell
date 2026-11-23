@@ -1,3 +1,4 @@
+\set SHOW_CONTEXT never
 create type si_dicts_result as (dict_name VARCHAR, affix_name VARCHAR, words INT, affixes INT, bytes INT);
 
 create function shared_ispell_dicts( OUT dict_name VARCHAR, OUT affix_name VARCHAR, OUT words INT, OUT affixes INT, OUT bytes INT)
