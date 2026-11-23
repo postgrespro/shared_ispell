@@ -16,7 +16,7 @@ which do not consume much memory. But for ispell dictionaries it can save you a 
 Install
 -------
 
-The supported PostgreSQL versions are from 9.6 to 18
+The supported PostgreSQL versions are from 9.6 to 19
 
 Installing the extension is quite simple and is done as follows:
 
