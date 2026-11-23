@@ -1,27 +1,24 @@
 Shared ISpell Dictionary
 ========================
 This PostgreSQL extension provides a shared ispell dictionary, i.e.
-a dictionary that's stored in shared segment. The traditional ispell
+a dictionary stored in shared memory. The traditional ispell
 implementation means that each session initializes and stores the
-dictionary on it's own, which means a lot of CPU/RAM is wasted.
+dictionary in its own process memory, which leads to excessive CPU/RAM consumption.
 
-This extension allocates an area in shared segment (you have to
-choose the size in advance) and then loads the dictionary into it
-when it's used for the first time.
+This extension allocates an area of fixed size in shared memory (the size is defined
+in the configuration file) and then loads the dictionary into it
+upon the first query to the dictionary.
 
-If you need just snowball-type dictionaries, this extension is not
-really interesting for you. But if you really need an ispell
-dictionary, this may save you a lot of resources.
+This extension is useless for stemming (snowball-type) or other simple dictionaries, 
+which do not consume much memory. But for ispell dictionaries it can save you a lot of resources.
 
 
 Install
 -------
 
-Before build and install `shared_ispell` you should ensure following:
+The supported PostgreSQL versions are from 9.6 to 19
 
-* PostgreSQL version is from 9.6 to 17 [^1]
-
-Installing the extension is quite simple. In that case all you need to do is this:
+Installing the extension is quite simple and is done as follows:
 
     $ git clone git@github.com:postgrespro/shared_ispell.git
     $ cd shared_ispell
@@ -37,41 +34,36 @@ and then (after connecting to the database)
 
 Config
 ------
-No the functions are created, but you still need to load the shared
-module. This needs to be done from postgresql.conf, as the module
-needs to allocate space in the shared memory segment. So add this to
-the config file (or update the current values)
+This module should be preloaded as it needs to allocate space in the shared memory.
+To ensure this add `shared_ispell` to the list of preloaded shared libraries in 
+the configuration file.
 
     # libraries to load
     shared_preload_libraries = 'shared_ispell'
 
-    # config of the shared memory
+    # size of the shared memory allocated to store dictionaries
     shared_ispell.max_size = 32MB
 
-Yes, there's a single GUC variable that defines the maximum size of
-the shared segment. This is a hard limit, the shared segment is not
-extensible and you need to set it so that all the dictionaries fit
-into it and not much memory is wasted.
+The maximum size of the allocated shared segment is set by `max_size` GUC variable.
+This is a hard limit, the shared segment is not
+extensible and its size should be sufficient to load all the dictionaries to be used.
 
-To find out how much memory you actually need, use a large value
-(e.g. 200MB) and load all the dictionaries you want to use. Then use
+To find out how much memory is actually needed, use a large value
+(e.g. 200MB) and load all the dictionaries you need. Then use
 the shared_ispell_mem_used() function to find out how much memory
-was actually used (and set the max_size GUC variable accordingly).
+is actually used and then set the `max_size` GUC variable accordingly.
+Add some extra space (like 512 kB) to make possible to reload the 
+dictionaries with slight changes.
 
-Don't set it exactly to that value, leave there some free space,
-so that you can reload the dictionaries without changing the GUC
-max_size limit (which requires a restart of the DB). Ssomething
-like 512kB should be just fine.
-
-The shared segment can contain several dictionaries at the same time,
-the amount of memory is the only limit. There's no limit on number
-of dictionaries / words etc. Just the max_size GUC variable.
+The number of dictionaries loaded in shared segment is limited 
+only by their total size.
 
 
 Using the dictionary
 --------------------
 Technically, the extension defines a 'shared_ispell' template that
-you may use to define custom dictionaries. E.g. you may do this
+may be used to define custom dictionaries. The following example shows
+how to do this:
 
     CREATE TEXT SEARCH DICTIONARY czech_shared (
         TEMPLATE = shared_ispell,
@@ -88,7 +80,7 @@ you may use to define custom dictionaries. E.g. you may do this
                         word, hword, hword_part
         WITH czech_shared;
 
-and then do the usual stuff, e.g.
+The dictionary is ready for usage:
 
     db=# SELECT ts_lexize('czech_shared', 'automobile');
 
@@ -97,21 +89,21 @@ or whatever you want.
 
 Available functions
 -------------------
-The extension provides five management functions, that allow you to
-manage and get info about the preloaded dictionaries. The first two
+The extension provides five management functions, that allow to
+manage and get information about the preloaded dictionaries. The first two
 functions
 
     shared_ispell_mem_used()
     shared_ispell_mem_available()
 
-allow you to get info about the shared segment (used and free memory)
-e.g. to properly size the segment (max_size). Then there are functions
-return list of dictionaries / stop lists loaded in the shared segment
+allow to get information about the shared segment (used and free memory)
+e.g. to properly size the segment (max_size). The following functions
+return the list of all loaded dictionaries and stop word lists:
 
     shared_ispell_dicts()
     shared_ispell_stoplists()
 
-e.g. like this
+e.g. like this:
 
     db=# SELECT * FROM shared_ispell_dicts();
 
@@ -129,34 +121,30 @@ e.g. like this
      czech     |   259 |  4552
     (1 row)
 
-The last function allows you to reset the dictionary (e.g. so that you
-can reload the updated files from disk). The sessions that already use
+One more function allows to reset the shared memory before reloading 
+the updated dictionary files from disk. The sessions that already use
 the dictionaries will be forced to reinitialize them (the first one
-will rebuild and copy them in the shared segment, the other ones will
-use this prepared data).
+will rebuild them and copy to the shared segment, other ones will
+use it then).
 
     db=# SELECT shared_ispell_reset();
 
 That's all for now ...
 
-Changes from original version
+Changes from the original version
 -----------------------------
-The original version of this module located in the Tomas Vondra's
-[GitHub](https://github.com/tvondra/shared_ispell). That version does not handle
-affixes that require full regular expressions (regex_t, implemented in regex.h).
+The original version of this module is located in the Tomas Vondra's
+[GitHub](https://github.com/tvondra/shared_ispell). It does not handle
+affixes which require full regular expressions (regex_t, implemented in regex.h).
 
-This version of the module can handle that affixes with full regular
+The present version of this module can handle affixes with full regular
 exressions. To handle it the module loads and stores affix files in each
-sessions. The affix list is tiny and takes a little time and memory to parse.
+session memort. As the affix lists are relatively small we hope it is affordable.
 Actually this is Tomas
 [idea](http://www.postgresql.org/message-id/56A5F3D5.9030702@2ndquadrant.com),
 but there is not related code in the GitHub.
 
-Author
+Authors
 ------
-Tomas Vondra [GitHub](https://github.com/tvondra)
-
-Notes
-------
-
-[^1]: If you would like support for newer versions, please contact us: [info@postgrespro.ru](mailto:info@postgrespro.ru?subject=shared_ispell)
+- Tomas Vondra [GitHub](https://github.com/tvondra)
+- Teodor Sigaev [Postgres Pro](https://postgrespro.com)

@@ -54,8 +54,10 @@
 #include "storage/ipc.h"
 #include "storage/shmem.h"
 
+#include "catalog/pg_collation_d.h"
 #include "commands/defrem.h"
 #include "tsearch/ts_locale.h"
+#include "utils/formatting.h"
 #include "access/htup_details.h"
 #include "funcapi.h"
 #include "utils/builtins.h"
@@ -65,6 +67,18 @@
 #include "tsearch/dicts/spell.h"
 
 PG_MODULE_MAGIC;
+
+#if (PG_VERSION_NUM >= 180000)
+#define DICT_CHARTYPE const char
+#else
+#define DICT_CHARTYPE char
+#endif
+
+#if (PG_VERSION_NUM >= 180000)
+#define LOWERFUNC str_tolower
+#else
+#define LOWERFUNC lowerstr
+#endif
 
 void _PG_init(void);
 
@@ -92,7 +106,7 @@ static int sizeStopList(StopList *list, char *stopFile);
  * Get memory for dictionaries in bytes
  */
 static Size
-max_ispell_mem_size()
+max_ispell_mem_size(void)
 {
 	return (Size) max_ispell_mem_size_kb * 1024L;
 }
@@ -171,7 +185,7 @@ shared_ispell_shmem_request(void)
  * This is called from a shmem_startup_hook (see _PG_init).
  */
 static void
-ispell_shmem_startup()
+ispell_shmem_startup(void)
 {
 	bool		found = false;
 	char	   *segment;
@@ -346,7 +360,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 			dict->useFlagAliases = true;
 			dict->lenAffixData = info->dict.lenAffixData;
 			dict->nAffixData = info->dict.nAffixData;
-			dict->AffixData = (char **) palloc0(dict->nAffixData * sizeof(char *));
+			dict->AffixData = (DICT_CHARTYPE **) palloc0(dict->nAffixData * sizeof(char *));
 
 			for (i = 0; i < dict->nAffixData; i++)
 				dict->AffixData[i] = pstrdup(info->dict.AffixData[i]);
@@ -392,7 +406,7 @@ init_shared_dict(DictInfo *info, MemoryContext infoCntx,
 		{
 			StopList	stoplist;
 
-			readstoplist(stopFile, &stoplist, lowerstr);
+			readstoplist(stopFile, &stoplist, LOWERFUNC);
 
 			size = sizeStopList(&stoplist, stopFile);
 			if (size > segment_info->available)
@@ -610,7 +624,7 @@ dispell_lexize(PG_FUNCTION_ARGS)
 	if (len <= 0)
 		PG_RETURN_POINTER(NULL);
 
-	txt = lowerstr_with_len(in, len);
+	txt = str_tolower(in, len, DEFAULT_COLLATION_OID);
 
 	/* need to lock the segment in shared mode */
 	LWLockAcquire(segment_info->lock, LW_SHARED);
@@ -818,7 +832,7 @@ copyIspellDict(IspellDict *dict, char *dictFile, char *affixFile, int size, int 
 
 	/* copy affix data */
 	copy->dict.nAffixData = dict->nAffixData;
-	copy->dict.AffixData = (char **) shalloc(sizeof(char *) * dict->nAffixData);
+	copy->dict.AffixData = (DICT_CHARTYPE **) shalloc(sizeof(char *) * dict->nAffixData);
 	for (i = 0; i < copy->dict.nAffixData; i++)
 		copy->dict.AffixData[i] = shstrcpy(dict->AffixData[i]);
 
